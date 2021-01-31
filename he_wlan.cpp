@@ -494,7 +494,7 @@ struct wlan_result simulate_wlan(const int bw, const int access_method, const in
 		if (access_method == PURE_UL_OFDMA) {
 			long long int txTime = duration_tf + SIFS + ofdma_ampdu_duration + SIFS + duration_multi_sta_back;
 			//need to change the value of nSARUs and nRARUS
-			std::cout<<"\n"<<"  "<<ofdma_stats.nSARUs<<" "<<ofdma_stats.nRARUs<<"\n";
+			//std::cout<<"\n"<<"  "<<ofdma_stats.nSARUs<<" "<<ofdma_stats.nRARUs<<"\n";
 			ul_ofdma(nSARUs, nRARUs, nRAStas, RAStas, &ofdma_stats, ofdma_ampdu_len, time + txTime);
 			nSARUs = ofdma_stats.nSARUs; // changing the RU dynamically
 			nRARUs = ofdma_stats.nRARUs;

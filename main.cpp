@@ -44,7 +44,7 @@ void pureOfdmaThroughput() {
 	setApAntennas(1);
 	
 	int step = 1;
-	for (int nStas = 1; nStas <= 10; nStas += step) {
+	for (int nStas = 1; nStas <= 100; nStas += step) {
 		if (nStas == 20) step = 10;
 
 		printf("%7d    ", nStas);
