@@ -4,7 +4,7 @@
 #include <algorithm>    // std::min
 #include <math.h>       /* ceil */
 #include "he_wlan.h"
-
+#include <iostream>
 /* run this program using the console pauser or add your own getch, system("pause") or input loop */
 
 #define CW_MIN                   15
@@ -14,9 +14,9 @@
 #define AIFS                     34
 #define SIFS                     16
 #define SLOT_TIME                9
-#define MAX_PPDU_DURATION_US     5484 //5484µs
+#define MAX_PPDU_DURATION_US     5484 //5484ï¿½s
 #define ETHERNET_FRAME_LENGTH    (1500*8) //length in bits
-#define MAX_SIMULATION_TIME_US   1000000000 //1000 sec
+#define MAX_SIMULATION_TIME_US   30000 //1000 sec
 
 
 int m_nApAntennas = 1;
@@ -255,10 +255,12 @@ struct stats_struct {
 	int nNoCollisions; //successful transmissions on RA RUs
 	int nRATx; //records the number of transmitted MPDUs on RA RUs. The total transmitted MPDUs = nRATx + nSATx
 	int nSATx; //records the number of transmitted MPDUs on SA RUs. The total transmitted MPDUs = nRATx + nSATx
+	int nRARUs; //number of ra rus	
+	int nSARUs; //number of sa rus
 };
 
 
-//"endTxTime" is the time in µs of the transmission end (including BACK). It is used to record the average transmission delay
+//"endTxTime" is the time in ï¿½s of the transmission end (including BACK). It is used to record the average transmission delay
 void ul_ofdma(int nSARUs, int nRARUs, int nRAStas, sta *RAStas, stats_struct *ofdma_stats, int ofdma_ampdu_len, long long int endTxTime) {
 	
 	int *nRARUSenders = NULL; //records the number of senders on each RA RU to determine the collisions
@@ -324,7 +326,9 @@ void ul_ofdma(int nSARUs, int nRARUs, int nRAStas, sta *RAStas, stats_struct *of
 			    exit(0);
 			}
 			else if (nRARUSenders[usedRARU] == 1) {
+				//successfull transmission of bsr packet
 				//no collisions: set a new OBO using an initialised window
+				//std::cout<<" bsr ";
 				RAStas[i].ocw = OCW_MIN;
 				RAStas[i].obo = rand() % (OCW_MIN + 1);
 				
@@ -334,6 +338,14 @@ void ul_ofdma(int nSARUs, int nRARUs, int nRAStas, sta *RAStas, stats_struct *of
 				RAStas[i].sumDelays += delay;
 				RAStas[i].nSuccAccesses += 1;
 				RAStas[i].dequeueTime = endTxTime;
+				//change 1.0
+				// if successfull transmission of bsr then ru is alocated as SA RU for next TF
+				if(ofdma_stats->nRARUs>0)
+				{
+					//std::cout<<" check ";
+					ofdma_stats->nRARUs = ofdma_stats->nRARUs - 1;
+					ofdma_stats->nSARUs = ofdma_stats->nSARUs + 1; 
+				}
 			}
 			else {
 				//there is collision: increase the cw and select a new OBO
@@ -347,12 +359,20 @@ void ul_ofdma(int nSARUs, int nRARUs, int nRAStas, sta *RAStas, stats_struct *of
 	for (int i = 0; i < nSARUs; i++) {
 		//each SA STA sends MPDUs subject to max PPDU duration
 		//the maximum number of streams is transmitted at each SA RU
+		//change 2.0
+		// considering one packet is only there
+		if(ofdma_stats->nSARUs>0)
+			{
+				ofdma_stats->nSARUs--;
+				ofdma_stats->nRARUs++;
+			}
 		ofdma_stats->nSATx += m_nApAntennas * ofdma_ampdu_len;
 	}
 	
 	if (nRARUs > 0) {
 		delete[] nRARUSenders;
 	}
+
 }
 
 
@@ -367,7 +387,8 @@ struct wlan_result simulate_wlan(const int bw, const int access_method, const in
 	if (nRARUs < 0) nRARUs = 0;
 	if (nRARUs > maxRUs) nRARUs = maxRUs;
 	if (max_ampdu_len < 1) max_ampdu_len = 1;
-	
+	//need to make this dynamic
+	//intialise
 	nSARUs = maxRUs - nRARUs;
 	
     
@@ -397,7 +418,7 @@ struct wlan_result simulate_wlan(const int bw, const int access_method, const in
     printf ("sounding duration = %d\n", abcd);
     exit(0);
     */
-    
+	
     
 
 	/* initialize random seed: */
@@ -411,10 +432,13 @@ struct wlan_result simulate_wlan(const int bw, const int access_method, const in
 	ofdma_stats.nNoCollisions = 0;
 	ofdma_stats.nRATx = 0;
 	ofdma_stats.nSATx = 0;
+	ofdma_stats.nRARUs = nRARUs;
+	ofdma_stats.nSARUs = nSARUs;
+
 	
 	sta APSta;
 	sta *RAStas = NULL; //it is possible that nRAstas=0
-	long long int time = 0; //time in µs
+	long long int time = 0; //time in ï¿½s
 	
 	int duration_tf = 44;
 	int ofdma_ampdu_len = std::min(max_ampdu_len, getOfdmaAMpduLength(mcs, ru_size, MAX_PPDU_DURATION_US, ETHERNET_FRAME_LENGTH));
@@ -469,7 +493,11 @@ struct wlan_result simulate_wlan(const int bw, const int access_method, const in
 	while (time < MAX_SIMULATION_TIME_US) {
 		if (access_method == PURE_UL_OFDMA) {
 			long long int txTime = duration_tf + SIFS + ofdma_ampdu_duration + SIFS + duration_multi_sta_back;
+			//need to change the value of nSARUs and nRARUS
+			std::cout<<"\n"<<"  "<<ofdma_stats.nSARUs<<" "<<ofdma_stats.nRARUs<<"\n";
 			ul_ofdma(nSARUs, nRARUs, nRAStas, RAStas, &ofdma_stats, ofdma_ampdu_len, time + txTime);
+			nSARUs = ofdma_stats.nSARUs; // changing the RU dynamically
+			nRARUs = ofdma_stats.nRARUs;
 			time += txTime + SIFS;
 
 			//no need for EDCA contention
@@ -730,6 +758,7 @@ struct wlan_result simulate_wlan(const int bw, const int access_method, const in
 	if (nRAStas > 0) {
 	    delete[] RAStas;
 	}
+	//std::cout<<"\n"<<"  "<<ofdma_stats.nSARUs<<" "<<ofdma_stats.nRARUs<<"\n";
 	return result;
-}
+	}
 
