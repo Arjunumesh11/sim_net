@@ -22,7 +22,7 @@ void pureOfdmaCollisionRate() {
 		
 		printf("%7d", nRAStas);
 		for (int nRARUs = 1; nRARUs <= 16; nRARUs *= 2) {
-			result = simulate_wlan(BANDWIDTH_80MHz, PURE_UL_OFDMA, RU_SIZE_26_TONES, nRARUs, nRAStas, MCS_6, 100);
+			result = simulate_wlan(BANDWIDTH_80MHz, PURE_UL_OFDMA, RU_SIZE_26_TONES, nRARUs, nRAStas, MCS_6, 100,2);
 			printf("    %5.2f%%", result.ofdma_collision_rate);
 		}
 		printf("\n");
@@ -39,26 +39,26 @@ void pureOfdmaThroughput() {
 	
 	printf("Throughput of pure UL OFDMA (1x1 UL MU-MIMO):\n");
 	printf("we measure the throughput as a function of the number of contending stations (not all stations)\n");
-	printf("nRAStas    10RARUs\n");//    1RARUs    2RARUs    4RARUs    8RARUs   16RARUs\n");
+	printf("nRAStas    		throughput			BSR\n");//    1RARUs    2RARUs    4RARUs    8RARUs   16RARUs\n");
 	
 	setApAntennas(1);
 	
 	int step = 1;
-	for (int nStas = 1; nStas <= 100; nStas += step) {
-		if (nStas == 20) step = 10;
+	for (int nStas = 1; nStas <= 37 ;nStas += step) {
+		//if (nStas == 20) step = 10;
 
-		printf("%7d    ", nStas);
-		
+		printf("%7d", nStas);
+		// printf("\n");
 		//case of nRARUs=0 is treated separately from the following "for" loop because 0 *= 2 is always 0 and causes an infinit loop
-		result = simulate_wlan(BANDWIDTH_80MHz, PURE_UL_OFDMA, RU_SIZE_26_TONES, 10, nStas, MCS_6, 100);
-		printf("%6.2fM   ", result.throughput);
+		result = simulate_wlan(BANDWIDTH_80MHz, PURE_UL_OFDMA, RU_SIZE_26_TONES, 37, 100, MCS_6, 100,nStas);
+		printf("		%6.2fM     			 %d ", result.throughput,result.bsr);
+		 printf("\n");
 
 		// for (int nRARUs = 1; nRARUs <= 16; nRARUs *= 2) {
 		// 	result = simulate_wlan(BANDWIDTH_80MHz, PURE_UL_OFDMA, RU_SIZE_26_TONES, 10, nStas, MCS_6, 10);
 		// 	printf("%6.2fM   ", result.throughput);
 		// }
 		
-		printf("\n");
 	}
 }
 

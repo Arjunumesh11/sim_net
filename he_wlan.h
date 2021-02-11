@@ -52,11 +52,11 @@ struct wlan_result {
 	
 	//network throughput
 	double throughput;
-	
-	//average transmission delays (in µs) of AP (valid only in case of DL OFDMA and DL MU-MIMO)
+	int bsr;
+	//average transmission delays (in ï¿½s) of AP (valid only in case of DL OFDMA and DL MU-MIMO)
 	long long int avgApTxDelaysMicros;
 	
-	//average transmission delays (in µs) of STAs with random access (RA STAs)
+	//average transmission delays (in ï¿½s) of STAs with random access (RA STAs)
 	long long int avgRAStasTxDelaysMicros;
 };
 
@@ -71,5 +71,5 @@ This function simulates a 802.11ax network and requires the bandwidth in MHz, th
 PURE_UL_OFDMA, DL_OFDMA_WITH_EDCA or DL_MU_MIMO_WITH_EDCA), the RU size, the number of RA RUs, the number of contending stations,
 the mcs and the maximum A-MPDU length (i.e. number of oggregated MPDUs within an A-MPDU).
 */
-struct wlan_result simulate_wlan(const int bw, const int access_method, const int ru_size, int nRARUs, int nRAStas, int mcs, int max_ampdu_len);
+struct wlan_result simulate_wlan(const int bw, const int access_method, const int ru_size, int nRARUs, int nRAStas, int mcs, int max_ampdu_len,int max_RARU);
 

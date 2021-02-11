@@ -6,7 +6,7 @@
 std::random_device rd;
 std::mt19937 gen(rd());
 
-luint poisson(luint lambda)
+luint poisson(luint lambda) 
 {
     std::poisson_distribution<luint> d(lambda);
     return d(gen);
