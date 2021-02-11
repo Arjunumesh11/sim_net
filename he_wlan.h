@@ -53,6 +53,7 @@ struct wlan_result {
 	//network throughput
 	double throughput;
 	int bsr;
+	int comp_user;
 	//average transmission delays (in �s) of AP (valid only in case of DL OFDMA and DL MU-MIMO)
 	long long int avgApTxDelaysMicros;
 	

@@ -261,6 +261,7 @@ struct stats_struct {
 	int nRARUs; //number of ra rus	
 	int nSARUs; //number of sa rus
 	int BSR;
+	int comp_count; //number of users completely transfered data
 };
 
 
@@ -367,12 +368,17 @@ void ul_ofdma(int nSARUs, int nRARUs, int nRAStas, sta *RAStas, stats_struct *of
 				exit(0);
 				printf("error_sa");
 			}
-
-				ofdma_stats->nSARUs--;
-				ofdma_stats->nRARUs++;
-				RAStas[i].issending = false;
-			
-			//printf("			%d		%d",ofdma_stats->nRARUs,ofdma_stats->nSARUs);
+				RAStas[i].bsr_size --;
+				// printf("p- %d \n",RAStas[i].bsr_size);
+				if(RAStas[i].bsr_size == 0)
+				{	
+					ofdma_stats->nSARUs--;
+					ofdma_stats->nRARUs++;
+					ofdma_stats->comp_count++;
+					RAStas[i].issending = false;
+					RAStas[i].bsr_size = CONST_PAC_SIZE;
+				}
+			// printf("			%d		%d",ofdma_stats->nRARUs,ofdma_stats->nSARUs);
 			ofdma_stats->nSATx += m_nApAntennas * ofdma_ampdu_len*20;
 		}
 	}
@@ -389,8 +395,9 @@ void ul_ofdma(int nSARUs, int nRARUs, int nRAStas, sta *RAStas, stats_struct *of
 	// 		}
 	// 	ofdma_stats->nSATx += m_nApAntennas * ofdma_ampdu_len;
 	// }
-	 //printf("			%d		%d",ofdma_stats->nRARUs,ofdma_stats->nSARUs);
-	 //printf("\n");
+
+	//  printf("			%d		%d",ofdma_stats->nRARUs,ofdma_stats->nSARUs);
+	//  printf("\n");
 	for (int i = 0; i < nRAStas; i++) {
 		if(RAStas[i].issending == READY)
 		{
@@ -463,6 +470,7 @@ struct wlan_result simulate_wlan(const int bw, const int access_method, const in
 	ofdma_stats.nRARUs = nRARUs;
 	ofdma_stats.nSARUs = nSARUs;
 	ofdma_stats.BSR = 0;
+	ofdma_stats.comp_count = 0;
 
 	
 	sta APSta;
@@ -517,7 +525,6 @@ struct wlan_result simulate_wlan(const int bw, const int access_method, const in
 		RAStas[i].dequeueTime = 0; //under high load condition, the first A-MPDU is dequeued at t=0
 		RAStas[i].nSuccAccesses = 0;
 		RAStas[i].sumDelays = 0;
-		RAStas[i].bsr_size = 3;
 		RAStas[i].issending = false;
 		RAStas[i].bsr_size = CONST_PAC_SIZE;
 	}
@@ -764,7 +771,7 @@ struct wlan_result simulate_wlan(const int bw, const int access_method, const in
 	result.ofdma_nNoCollisions = ofdma_stats.nCollisions;
 	result.ofdma_nCollisions = ofdma_stats.nNoCollisions;
 	result.ofdma_collision_rate = collision_rate;
-	
+	result.comp_user = ofdma_stats.comp_count;
 	result.throughput = throughput;
 	//record the average tx delays
 	//average transmission delays of AP is valid only in cases of DL OFDMA and DL MU-MIMO
