@@ -16,9 +16,9 @@
 #define SLOT_TIME                9
 #define MAX_PPDU_DURATION_US     5484 //5484�s
 #define ETHERNET_FRAME_LENGTH    (1500*8) //length in bits
-#define MAX_SIMULATION_TIME_US   300000 //1000 sec
 #define CONST_PAC_SIZE			 10//packet size
 #define READY 					 2//sending status
+#define MAX_SIMULATION_TIME_US   500000 //1000 sec
 
 int m_nApAntennas = 1;
 void setApAntennas(int nApAntennas) {
@@ -379,7 +379,7 @@ void ul_ofdma(int nSARUs, int nRARUs, int nRAStas, sta *RAStas, stats_struct *of
 					RAStas[i].bsr_size = CONST_PAC_SIZE;
 				}
 			// printf("			%d		%d",ofdma_stats->nRARUs,ofdma_stats->nSARUs);
-			ofdma_stats->nSATx += m_nApAntennas * ofdma_ampdu_len*20;
+			ofdma_stats->nSATx += m_nApAntennas * ofdma_ampdu_len*5000;
 		}
 	}
 	//send using SA RUs
