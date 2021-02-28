@@ -18,7 +18,8 @@
 #define ETHERNET_FRAME_LENGTH    (1500*8) //length in bits
 #define CONST_PAC_SIZE			 10//packet size
 #define READY 					 2//sending status
-#define MAX_SIMULATION_TIME_US   500000 //1000 sec
+#define QUEUED					 3//sta is in queue
+#define MAX_SIMULATION_TIME_US   1000000 //1000 sec
 
 int m_nApAntennas = 1;
 void setApAntennas(int nApAntennas) {
@@ -282,25 +283,27 @@ void ul_ofdma(int nSARUs, int nRARUs, int nRAStas, sta *RAStas, stats_struct *of
 	
 	//contend and send using RA RUs
 	for (int i = 0; i < nRAStas; i++) {
-		if (RAStas[i].obo < 0) {
-			//this case should not accur
-			printf("Error : RAStas[i].obo < 0\nExit ...\n");
-			exit(0);
-		}
-		
-		//should check that nRARUs > 0, because RAStas[i].obo may be 0
-		if (nRARUs > 0 && RAStas[i].obo <= nRARUs) {
-			//send on a randomly selected RUs
-			RAStas[i].obo = -1; //make it invalid so we can set it later
-							    //do not set it here, because OBO depends on the transmission status (success or failure)
-			int usedRARU = rand() % nRARUs;
-			RAStas[i].usedRARU = usedRARU;
-			nRARUSenders[usedRARU] += 1; //increase the number of senders on this RA RU to count the number of collisions
+		if(RAStas[i].issending==false){
+			if (RAStas[i].obo < 0) {
+				//this case should not accur
+				printf("Error : RAStas[i].obo < 0\nExit ...\n");
+				exit(0);
+			}
 			
-			//we are not sure about the success of the transmission, so we dont increment nRATx now
-		}
-		else {
-			RAStas[i].obo -= nRARUs; //if nRARUs=0, RAStas will never send. This is fine !
+			//should check that nRARUs > 0, because RAStas[i].obo may be 0
+			if (nRARUs > 0 && RAStas[i].obo <= nRARUs) {
+				//send on a randomly selected RUs
+				RAStas[i].obo = -1; //make it invalid so we can set it later
+									//do not set it here, because OBO depends on the transmission status (success or failure)
+				int usedRARU = rand() % nRARUs;
+				RAStas[i].usedRARU = usedRARU;
+				nRARUSenders[usedRARU] += 1; //increase the number of senders on this RA RU to count the number of collisions
+				
+				//we are not sure about the success of the transmission, so we dont increment nRATx now
+			}
+			else {
+				RAStas[i].obo -= nRARUs; //if nRARUs=0, RAStas will never send. This is fine !
+			}
 		}
 	}
 	
@@ -322,6 +325,21 @@ void ul_ofdma(int nSARUs, int nRARUs, int nRAStas, sta *RAStas, stats_struct *of
 	
 	//handle OBO of RA STAs here
 	for (int i = 0; i < nRAStas; i++) {
+		if(RAStas[i].issending == QUEUED)
+		{
+			if(ofdma_stats->nRARUs>max_RARU)
+				{
+					RAStas[i].issending = READY;
+					ofdma_stats->nRARUs = ofdma_stats->nRARUs - 1;
+					ofdma_stats->nSARUs = ofdma_stats->nSARUs + 1; 
+				}
+			else
+				{
+					RAStas[i].issending = false;
+				}
+		}
+	}
+	for (int i = 0; i < nRAStas; i++) {
 		if (RAStas[i].obo < 0) {
 			//this station is sending: check if there is collision on the used RA RU
 			int usedRARU = RAStas[i].usedRARU;
@@ -334,7 +352,6 @@ void ul_ofdma(int nSARUs, int nRARUs, int nRAStas, sta *RAStas, stats_struct *of
 			else if (nRARUSenders[usedRARU] == 1) {
 				//successfull transmission of bsr packet
 				//no collisions: set a new OBO using an initialised window
-				//std::cout<<" bsr ";
 				RAStas[i].ocw = OCW_MIN;
 				RAStas[i].obo = rand() % (OCW_MIN + 1);
 				ofdma_stats->BSR++;
@@ -344,14 +361,16 @@ void ul_ofdma(int nSARUs, int nRARUs, int nRAStas, sta *RAStas, stats_struct *of
 				RAStas[i].sumDelays += delay;
 				RAStas[i].nSuccAccesses += 1;
 				RAStas[i].dequeueTime = endTxTime;
-				//change 1.0
+
 				// if successfull transmission of bsr then ru is alocated as SA RU for next TF
 				if(ofdma_stats->nRARUs>max_RARU)
 				{
-					//std::cout<<" check ";
 					RAStas[i].issending = READY;
 					ofdma_stats->nRARUs = ofdma_stats->nRARUs - 1;
 					ofdma_stats->nSARUs = ofdma_stats->nSARUs + 1; 
+				}
+				else{
+						RAStas[i].issending = QUEUED;
 				}
 			}
 			else {
@@ -369,7 +388,6 @@ void ul_ofdma(int nSARUs, int nRARUs, int nRAStas, sta *RAStas, stats_struct *of
 				printf("error_sa");
 			}
 				RAStas[i].bsr_size --;
-				// printf("p- %d \n",RAStas[i].bsr_size);
 				if(RAStas[i].bsr_size == 0)
 				{	
 					ofdma_stats->nSARUs--;
@@ -382,19 +400,7 @@ void ul_ofdma(int nSARUs, int nRARUs, int nRAStas, sta *RAStas, stats_struct *of
 			ofdma_stats->nSATx += m_nApAntennas * ofdma_ampdu_len*5000;
 		}
 	}
-	//send using SA RUs
-	// for (int i = 0; i < nSARUs; i++) {
-	// 	//each SA STA sends MPDUs subject to max PPDU duration
-	// 	//the maximum number of streams is transmitted at each SA RU
-	// 	//change 2.0
-	// 	// considering one packet is only there
-	// 	if(ofdma_stats->nSARUs>0)
-	// 		{
-	// 			ofdma_stats->nSARUs--;
-	// 			ofdma_stats->nRARUs++;
-	// 		}
-	// 	ofdma_stats->nSATx += m_nApAntennas * ofdma_ampdu_len;
-	// }
+	
 
 	//  printf("			%d		%d",ofdma_stats->nRARUs,ofdma_stats->nSARUs);
 	//  printf("\n");
@@ -447,14 +453,6 @@ struct wlan_result simulate_wlan(const int bw, const int access_method, const in
     	exit(0);
     }
     
-    
-    /*
-    int abcd = getSoundingDuration(bw, mcs, ru_size, nRAStas);
-    printf ("sounding duration = %d\n", abcd);
-    exit(0);
-    */
-	
-    
 
 	/* initialize random seed: */
     srand (time(NULL)); //put it here because there is a variable called "time", to avoid the error : 'time' cannot be used as a function
@@ -488,12 +486,6 @@ struct wlan_result simulate_wlan(const int bw, const int access_method, const in
 	int edca_ampdu_duration = getEdcaAMpduDuration(mcs, bw, edca_ampdu_len, ETHERNET_FRAME_LENGTH);
 	int duration_back = 44;
 	
-	/*
-	printf ("max_ofdma_ampdu_len = %d, max_edca_ampdu_len = %d\n", 
-			getOfdmaAMpduLength(mcs, ru_size, MAX_PPDU_DURATION_US, ETHERNET_FRAME_LENGTH), 
-			getEdcaAMpduLength(mcs, bw, MAX_PPDU_DURATION_US, ETHERNET_FRAME_LENGTH));
-    exit(0);
-	*/
 	
 	int nextSoundingTime = 0;
 	int sounding_duration = 0;
